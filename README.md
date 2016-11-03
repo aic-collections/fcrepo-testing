@@ -4,8 +4,6 @@ Scripts to load resources and that can check the status of those resources.  Oth
 
 ## Getting Started
 
-These instructions will get you a copy of the project up and running on your local machine for development and testing purposes. See deployment for notes on how to deploy the project on a live system.
-
 ### Prerequisites
 
 Python3 (tested with 3.5)
@@ -15,10 +13,10 @@ Python3 (tested with 3.5)
 Assuming a virtualenv:
 
 ```
-pip install -r requirements
+pip install -r requirements.txt
 ```
 
-There are is a `config` file.  If necessary, copy and modify one to fit your environment.
+There are `config` files in the `config` directory.  If necessary, copy and modify one to fit your environment.
 
 ## Running
 
@@ -58,4 +56,4 @@ You should get a `204 No Content` response.  Re-run the verification script:
 ./test-gets --config config/localhost.yaml --data source-data/loaded-uris/{previously_saved_file}.txt
 ```
 
-If you see 500s, something went wrong somewhere.
+If you see 500s, something went wrong somewhere with the backup/restore process.
