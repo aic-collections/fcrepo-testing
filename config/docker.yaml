@@ -1,0 +1,4 @@
+fcrepo:
+    base: http://192.168.99.100:8080/fcrepo/rest/ktest/
+source_relations: source-data/sample-data/relations.rdf
+source_data: source-data/sample-data/5000.rdf

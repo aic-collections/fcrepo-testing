@@ -1,0 +1,162 @@
+#!/usr/bin/env python
+
+import yaml
+import sys
+import os
+
+import requests
+
+import random
+
+from rdflib.graph import Graph
+from rdflib import Namespace, URIRef, Literal
+
+import datetime
+from time import gmtime, strftime, sleep
+
+from modules.config_parser import args
+from modules.counter import Counter
+from modules.helpers import get_hexdec_combos
+
+from hashlib import md5
+
+SKOS = Namespace("http://www.w3.org/2004/02/skos/core#")
+nsdict = dict(skos=SKOS)
+
+def put_request(s, c, counter):
+        new_s = s.replace(config['fcrepo']['base'], config['fcrepo']['base'] + c + "/")
+        
+        tempg = Graph()
+        for s,p,o in G.triples( (s, None, None) ):
+            tempg.add(( URIRef(new_s), p, o))
+        
+        num = random.randint(1, 4)
+        tempg.add( ( URIRef(new_s), SKOS.related, URIRef(config['fcrepo']['base'] + "related0" + str(num)) ) )
+        d = tempg.serialize(format="nt", initNs=nsdict)
+        headers={"Content-type": "application/n-triples"}
+        
+        st = datetime.datetime.now()
+        starttime = strftime("%Y-%m-%d %H:%M:%S", gmtime())
+        
+        processed = 0
+        response_status_code = 0
+        httperror = 1
+        with requests.Session() as sess:
+            try:
+                r = sess.put(new_s, data=d, headers=headers)
+                httperror = 0
+                response_status_code = r.status_code
+                if r.status_code == 201:
+                    processed = 1
+            except requests.exceptions.RequestException as e:
+                    print (e)
+                    pass
+            
+        endtime = strftime("%Y-%m-%d %H:%M:%S", gmtime())
+        et = datetime.datetime.now()
+        timedelta = et - st
+        
+        oline = new_s+ "; " + str(processed) + "; " + str(response_status_code) + "; " + str(timedelta) + "; "
+        counter.results.append(oline)
+        print(oline)
+        
+        i = {
+            "processed": processed,
+            "httperror": httperror,
+            "response_status_code": response_status_code,
+            "starttime": starttime,
+            "endtime": endtime,
+            "timedelta": timedelta
+        }
+        counter.update(i)
+        return
+        
+def fetchRDF(rdffile):
+    '''Open RDF file and modify URIs'''
+    rdf = ''
+    with open(rdffile) as f:
+        for line in f:
+            l = line.replace('%BASE%', config['fcrepo']['base'])
+            l = l.replace('%BASE_NOSLASH%', config['fcrepo']['base'][:-1])
+            rdf = rdf + l
+    return rdf
+    
+def loadGraph(rdf):
+    '''Load RDF into graph'''
+    g = Graph()
+    g.parse(data=rdf, format="xml")
+    return g
+    
+def getSubjects(g, limit):
+    '''SUBJECTS generator'''
+    q = "SELECT DISTINCT ?s WHERE { ?s <http://www.w3.org/2004/02/skos/core#prefLabel> ?o . }"
+    if int(limit) > 0:
+        q = q + " LIMIT " + str(limit)
+    return g.query(q)
+
+def insertRelations(sourcefile):
+    rdf = fetchRDF(sourcefile)
+    g = loadGraph(rdf)
+    subjects = getSubjects(g, -1)
+    for subject in subjects:
+        s = subject.s.__str__()
+
+        tempg = Graph()
+        tempg += g.triples( (subject.s, None, None) )
+        d = tempg.serialize(format="nt", initNs=nsdict)
+        response = requests.put(s, data=d, headers={"Content-type": "application/n-triples"})
+        oline = s+ "; " + str(response.status_code) + "; "
+        counter.results.append(oline)
+        print(oline)
+        
+config = yaml.safe_load(open(args.config))
+print()
+print("Config:")
+print(config)
+print()
+
+COMBINATIONS = get_hexdec_combos()
+counter = Counter()
+c_counter = 0
+s_counter = 0
+
+# Make sure container exists
+requests.put(config["fcrepo"]["base"])
+
+# Insert the relations
+insertRelations(config["source_relations"])
+
+# Parse the sample source data
+rdf = fetchRDF(config["source_data"])
+G = loadGraph(rdf)
+distinct_subjects = getSubjects(G, 0)
+SUBJECTS = []
+for subject in distinct_subjects:
+    s = subject.s.__str__()
+    SUBJECTS.append(subject.s)
+
+st = datetime.datetime.now()
+starttime = strftime("%Y-%m-%d %H:%M:%S", gmtime())
+
+for s in SUBJECTS:
+    c = COMBINATIONS[c_counter]
+    put_request(s, c, counter)
+    s_counter = s_counter + 1
+    if s_counter % 10 == 0:
+        c_counter = c_counter + 1
+        if (c_counter + 1) > len(COMBINATIONS):
+            break
+
+gt = gmtime()
+endtime = strftime("%Y-%m-%d %H:%M:%S", gt)
+et = datetime.datetime.now()
+timedelta = et - st
+
+with open('source-data/loaded-uris/' + strftime("%Y%m%d%H%M%S", gt) + '.txt', 'w') as f:
+    f.write("\n".join(counter.results))
+
+counter.output(starttime, endtime, timedelta)
+
+
+
+

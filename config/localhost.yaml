@@ -1,0 +1,4 @@
+fcrepo:
+    base: http://localhost:8080/fcrepo/rest/test/
+source_relations: source-data/sample-data/relations.rdf
+source_data: source-data/sample-data/5000.rdf
