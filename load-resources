@@ -142,7 +142,7 @@ for s in SUBJECTS:
     c = COMBINATIONS[c_counter]
     put_request(s, c, counter)
     s_counter = s_counter + 1
-    if s_counter % 10 == 0:
+    if s_counter % config["multiplier"] == 0:
         c_counter = c_counter + 1
         if (c_counter + 1) > len(COMBINATIONS):
             break
