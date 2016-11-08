@@ -38,15 +38,8 @@ Assuming the response codes for the resources are all 200s, perform a backup of 
 curl -i -X POST http://{FCREPO_HOST}:{FCREPO_PORT}/fcrepo/rest/fcr:backup
 ```
 
-Note the location of the backed up repository in the response.  
+Note the location of the backed up repository in the response.  Using that information, restore the repository:
 
-You can try to `restore` the repository from the backup just created, but I've *always* had to use the [Fcrepo upgrade utils](https://github.com/fcrepo4-exts/fcrepo4-upgrade-utils/releases/) on the backup prior to it succeeding.
-
-```
-java -jar {frepo_upgrade_utils.jar} {/path/to/backup/}
-```
-
-Then restore the repository:
 ```
 curl -i -X POST -d {/path/to/backup/} http://{FCREPO_HOST}:{FCREPO_PORT}/fcrepo/rest/fcr:restore
 ```
@@ -56,4 +49,4 @@ You should get a `204 No Content` response.  Re-run the verification script:
 ./test-gets --config config/localhost.yaml --data source-data/loaded-uris/{previously_saved_file}.txt
 ```
 
-If you see 500s, something went wrong somewhere with the backup/restore process.
+The result should be all "200 OK" messages.  If you see 500s, something went wrong somewhere with the backup/restore process.
