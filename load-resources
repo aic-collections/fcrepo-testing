@@ -71,6 +71,10 @@ def put_request(s, c, counter):
             
             im = Image.open("source-data/sample-data/20151225_084019.jpg")
             im = im.rotate(-90, expand=True)
+            # Adding text, hopefully, will result in a unique image.  
+            # In a limited test of about 1,250 resources, this was certainly the case,
+            # finding 1,250 resources buried in the subdirectories of the fcrepo.binary 
+            # directory.
             draw = ImageDraw.Draw(im)
             font = ImageFont.truetype("source-data/sample-data/Tuffy_Bold.ttf", 56)
             draw.text((10, 4030), new_s_binary, (0,0,0), font=font)
