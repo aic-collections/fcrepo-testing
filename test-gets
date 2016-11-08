@@ -57,9 +57,14 @@ def get_requests(uri):
             "response_status_code": response_status_code,
             "starttime": starttime,
             "endtime": endtime,
-            "timedelta": timedelta
+            "timedelta": timedelta,
+            
+            "processed_binary": 0,
+            "httperror_binary": 0,
+            "response_status_code_binary": 0,
+            "timedelta_binary": datetime.timedelta(0),
         }
-        counter.update(i)
+        counter.update(i, config["load_binary_data"])
         return
         
 
@@ -84,8 +89,9 @@ with open(config["source_data"]) as f:
         uri = l_parts[0]
         uris.append(uri)
         
-        pairtree = '/'.join(uri.split('/')[:-1])
-        pairtrees.append(pairtree)
+        if not 'addison' in uri:
+            pairtree = '/'.join(uri.split('/')[:-1])
+            pairtrees.append(pairtree)
 pairtree_set = set(pairtrees)
 pairtrees = list(pairtree_set)
 
@@ -101,7 +107,7 @@ endtime = strftime("%Y-%m-%d %H:%M:%S", gmtime())
 et = datetime.datetime.now()
 timedelta = et - st
 
-counter.output(starttime, endtime, timedelta)
+counter.output(starttime, endtime, timedelta, config["load_binary_data"])
 
 
 

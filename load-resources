@@ -3,6 +3,7 @@
 import yaml
 import sys
 import os
+import io 
 
 import requests
 
@@ -19,6 +20,8 @@ from modules.counter import Counter
 from modules.helpers import get_hexdec_combos
 
 from hashlib import md5
+
+from PIL import Image, ImageDraw, ImageFont
 
 SKOS = Namespace("http://www.w3.org/2004/02/skos/core#")
 nsdict = dict(skos=SKOS)
@@ -51,24 +54,70 @@ def put_request(s, c, counter):
             except requests.exceptions.RequestException as e:
                     print (e)
                     pass
-            
+
         endtime = strftime("%Y-%m-%d %H:%M:%S", gmtime())
         et = datetime.datetime.now()
         timedelta = et - st
-        
+
         oline = new_s+ "; " + str(processed) + "; " + str(response_status_code) + "; " + str(timedelta) + "; "
         counter.results.append(oline)
         print(oline)
         
+        processed_binary = 0
+        httperror_binary = 0
+        response_status_code_binary = 0
+        if config["load_binary_data"]:
+            new_s_binary = new_s + "/addison.jpg"
+            
+            im = Image.open("source-data/sample-data/20151225_084019.jpg")
+            im = im.rotate(-90, expand=True)
+            draw = ImageDraw.Draw(im)
+            font = ImageFont.truetype("source-data/sample-data/Tuffy_Bold.ttf", 56)
+            draw.text((10, 4030), new_s_binary, (0,0,0), font=font)
+            
+            file = io.BytesIO()
+            im.save(file, format="jpeg")
+            file.name = 'addison.jpg'
+            file.seek(0)
+            
+            headers={"Content-type": "image/jpeg"}
+            
+            st_binary = datetime.datetime.now()
+            starttime_binary = strftime("%Y-%m-%d %H:%M:%S", gmtime())
+        
+            with requests.Session() as sess:
+                try:
+                    r = sess.put(new_s_binary, data=file, headers=headers)
+                    httperror_binary = 0
+                    response_status_code_binary = r.status_code
+                    if r.status_code == 201:
+                        processed_binary = 1
+                except requests.exceptions.RequestException as e:
+                        print (e)
+                        pass
+            
+            endtime_binary = strftime("%Y-%m-%d %H:%M:%S", gmtime())
+            et_binary = datetime.datetime.now()
+            timedelta_binary = et_binary - st_binary
+            
+            oline = new_s_binary+ "; " + str(processed_binary) + "; " + str(response_status_code_binary) + "; " + str(timedelta) + "; "
+            counter.results.append(oline)
+            print(oline)
+
         i = {
             "processed": processed,
             "httperror": httperror,
             "response_status_code": response_status_code,
             "starttime": starttime,
             "endtime": endtime,
-            "timedelta": timedelta
+            "timedelta": timedelta,
+            
+            "processed_binary": processed_binary,
+            "httperror_binary": httperror_binary,
+            "response_status_code_binary": response_status_code_binary,
+            "timedelta_binary": timedelta_binary,
         }
-        counter.update(i)
+        counter.update(i, config["load_binary_data"])
         return
         
 def fetchRDF(rdffile):
@@ -155,7 +204,7 @@ timedelta = et - st
 with open('source-data/loaded-uris/' + strftime("%Y%m%d%H%M%S", gt) + '.txt', 'w') as f:
     f.write("\n".join(counter.results))
 
-counter.output(starttime, endtime, timedelta)
+counter.output(starttime, endtime, timedelta, config["load_binary_data"])
 
 
 
