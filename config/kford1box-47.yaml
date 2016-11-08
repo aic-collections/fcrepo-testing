@@ -3,3 +3,4 @@ fcrepo:
 source_relations: source-data/sample-data/relations.rdf
 source_data: source-data/sample-data/50000.rdf
 multiplier: 100
+load_binary_data: 0
