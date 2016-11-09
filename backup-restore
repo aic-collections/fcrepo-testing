@@ -1,0 +1,93 @@
+#!/usr/bin/env python
+
+'''
+This file can be used to test the backup/restore process on the *same* version
+and copy of fedora.  It will not work (at present) to test a migration from an 
+older version of Fedora to a newer one.
+'''
+
+import subprocess
+import sys
+import os
+import glob
+
+import datetime
+from time import gmtime, strftime, sleep
+
+import requests
+import yaml
+
+from modules.config_parser import args
+
+st = datetime.datetime.now()
+br_log_file = "br_run_" + strftime("%Y%m%d%H%M%S", gmtime()) + ".log"
+
+config = yaml.safe_load(open(args.config))
+fcrepo = '/'.join(config["fcrepo"]["base"].split('/')[:-2])
+
+print()
+print("Loading sample data...")
+load = subprocess.run(["./load-resources", "--config", args.config], stdout=subprocess.PIPE)
+print(load.stdout.decode("utf-8"))
+with open(br_log_file, 'w') as f:
+    f.write(load.stdout.decode("utf-8"))
+if load.stderr is not None:
+    print(load.stderr.decode("utf-8"))
+    with open(br_log_file, 'a') as f:
+        f.write(load.stdout.decode("utf-8"))
+
+sleep(1)
+loaded_uris_files = glob.glob('source-data/loaded-uris/*.txt')
+loaded_uris_file = max(loaded_uris_files , key = os.path.getctime)
+
+print("Pausing for 15 seconds.  Just taking a breather.")
+sleep(15)
+
+print()
+print()
+print("Verifying loaded data...")
+verify_load = subprocess.run(["./test-gets", "--config", args.config, "--data", loaded_uris_file], stdout=subprocess.PIPE)
+print(verify_load.stdout.decode("utf-8"))
+with open(br_log_file, 'a') as f:
+    f.write(verify_load.stdout.decode("utf-8"))
+if verify_load.stderr is not None:
+    print(verify_load.stderr.decode("utf-8"))
+    with open(br_log_file, 'a') as f:
+        f.write(verify_load.stderr.decode("utf-8"))
+
+sleep(3)
+print("Performing backup...")
+backup = requests.post(fcrepo + "/fcr:backup")
+backup_location = backup.text
+
+print("Response status: " + str(backup.status_code))
+print("Response content: " + backup.text)
+print("Location of backup: " + backup_location)
+print("Sleep for 10 seconds, for good measure.")
+sleep(10)
+
+print()
+print("Restoring the repository...")
+restore = requests.post(fcrepo + "/fcr:restore", data=backup_location)
+print("Response status: " + str(restore.status_code))
+print("Sleep for 10 seconds, let fedora rest a sec.")
+sleep(10)
+
+print()
+print()
+print("Verifying restored data...")
+verify_load = subprocess.run(["./test-gets", "--config", args.config, "--data", loaded_uris_file], stdout=subprocess.PIPE)
+print(verify_load.stdout.decode("utf-8"))
+with open(br_log_file, 'a') as f:
+    f.write(verify_load.stdout.decode("utf-8"))
+if verify_load.stderr is not None:
+    print(verify_load.stderr.decode("utf-8"))
+    with open(br_log_file, 'a') as f:
+        f.write(verify_load.stderr.decode("utf-8"))
+
+print("Load, verification, backup, restore, and restore verification complete.")
+print("The number of 200s in the above output should match the number of 200s in the verification run prior to the backup/restore operation.")
+print("A log of this output is in: " + br_log_file)
+print()
+
+
