@@ -66,6 +66,7 @@ def put_request(s, c, counter):
         processed_binary = 0
         httperror_binary = 0
         response_status_code_binary = 0
+        timedelta_binary = datetime.timedelta(0)
         if config["load_binary_data"]:
             new_s_binary = new_s + "/addison.jpg"
             
@@ -205,10 +206,19 @@ endtime = strftime("%Y-%m-%d %H:%M:%S", gt)
 et = datetime.datetime.now()
 timedelta = et - st
 
-with open('source-data/loaded-uris/' + strftime("%Y%m%d%H%M%S", gt) + '.txt', 'w') as f:
+loaded_uris_file = 'source-data/loaded-uris/' + strftime("%Y%m%d%H%M%S", gt) + '.txt'
+with open(loaded_uris_file, 'w') as f:
     f.write("\n".join(counter.results))
 
 counter.output(starttime, endtime, timedelta, config["load_binary_data"])
+
+print("Loaded uris: " + loaded_uris_file)
+print()
+
+print("Verify the load: ")
+print("./test-gets --config " + args.config + " --data " + loaded_uris_file)
+print()
+
 
 
 
