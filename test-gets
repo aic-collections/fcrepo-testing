@@ -4,69 +4,14 @@ import yaml
 import sys
 import os
 
-import requests
-
-import random
-
-from rdflib.graph import Graph
-from rdflib import Namespace, URIRef, Literal
-
 import datetime
 from time import gmtime, strftime, sleep
 
 from modules.config_parser import args
 from modules.counter import Counter
+from modules.ho import HTTPOperation
 from modules.helpers import get_hexdec_combos
 
-from hashlib import md5
-
-SKOS = Namespace("http://www.w3.org/2004/02/skos/core#")
-nsdict = dict(skos=SKOS)
-
-def get_requests(uri):
-        headers={"Content-type": "application/n-triples"}
-
-        st = datetime.datetime.now()
-        starttime = strftime("%Y-%m-%d %H:%M:%S", gmtime())
-        
-        processed = 0
-        response_status_code = 0
-        httperror = 1
-        with requests.Session() as sess:
-            try:
-                r = sess.get(uri, headers=headers)
-                httperror = 0
-                response_status_code = r.status_code
-                if r.status_code == 200:
-                    processed = 1
-            except requests.exceptions.RequestException as e:  # This is the correct syntax
-                    print (e)
-                    pass
-            
-        endtime = strftime("%Y-%m-%d %H:%M:%S", gmtime())
-        et = datetime.datetime.now()
-        timedelta = et - st
-        
-        oline = uri+ "; " + str(processed) + "; " + str(response_status_code) + "; " + str(timedelta) + "; "
-        counter.results.append(oline)
-        print(oline)
-        
-        i = {
-            "processed": processed,
-            "httperror": httperror,
-            "response_status_code": response_status_code,
-            "starttime": starttime,
-            "endtime": endtime,
-            "timedelta": timedelta,
-            
-            "processed_binary": 0,
-            "httperror_binary": 0,
-            "response_status_code_binary": 0,
-            "timedelta_binary": datetime.timedelta(0),
-        }
-        counter.update(i, config["load_binary_data"])
-        return
-        
 
 config = yaml.safe_load(open(args.config))
 if (args.data != ""):
@@ -78,6 +23,7 @@ print(config)
 print()
 
 counter = Counter()
+http_ops = HTTPOperation(config, counter)
 
 uris = []
 pairtrees = []
@@ -99,9 +45,9 @@ st = datetime.datetime.now()
 starttime = strftime("%Y-%m-%d %H:%M:%S", gmtime())
 
 for u in uris:
-    get_requests(u)
+    http_ops.get_request(u)
 for pt in pairtrees:
-    get_requests(pt)
+    http_ops.get_request(pt)
 
 endtime = strftime("%Y-%m-%d %H:%M:%S", gmtime())
 et = datetime.datetime.now()

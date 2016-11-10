@@ -3,166 +3,18 @@
 import yaml
 import sys
 import os
-import io 
-
-import requests
-
-import random
-
-from rdflib.graph import Graph
-from rdflib import Namespace, URIRef, Literal
 
 import datetime
 from time import gmtime, strftime, sleep
 
+import requests
+
 from modules.config_parser import args
 from modules.counter import Counter
+from modules.go import GraphOperation
+from modules.ho import HTTPOperation
 from modules.helpers import get_hexdec_combos
 
-from hashlib import md5
-
-from PIL import Image, ImageDraw, ImageFont
-
-SKOS = Namespace("http://www.w3.org/2004/02/skos/core#")
-nsdict = dict(skos=SKOS)
-
-def put_request(s, c, counter):
-        new_s = s.replace(config['fcrepo']['base'], config['fcrepo']['base'] + c + "/")
-        
-        tempg = Graph()
-        for s,p,o in G.triples( (s, None, None) ):
-            tempg.add(( URIRef(new_s), p, o))
-        
-        num = random.randint(1, 4)
-        tempg.add( ( URIRef(new_s), SKOS.related, URIRef(config['fcrepo']['base'] + "related0" + str(num)) ) )
-        d = tempg.serialize(format="nt", initNs=nsdict)
-        headers={"Content-type": "application/n-triples"}
-        
-        st = datetime.datetime.now()
-        starttime = strftime("%Y-%m-%d %H:%M:%S", gmtime())
-        
-        processed = 0
-        response_status_code = 0
-        httperror = 1
-        with requests.Session() as sess:
-            try:
-                r = sess.put(new_s, data=d, headers=headers)
-                httperror = 0
-                response_status_code = r.status_code
-                if r.status_code == 201:
-                    processed = 1
-            except requests.exceptions.RequestException as e:
-                    print (e)
-                    pass
-
-        endtime = strftime("%Y-%m-%d %H:%M:%S", gmtime())
-        et = datetime.datetime.now()
-        timedelta = et - st
-
-        oline = new_s+ "; " + str(processed) + "; " + str(response_status_code) + "; " + str(timedelta) + "; "
-        counter.results.append(oline)
-        print(oline)
-        
-        processed_binary = 0
-        httperror_binary = 0
-        response_status_code_binary = 0
-        timedelta_binary = datetime.timedelta(0)
-        if config["load_binary_data"]:
-            new_s_binary = new_s + "/addison.jpg"
-            
-            im = Image.open("source-data/sample-data/20151225_084019.jpg")
-            im = im.rotate(-90, expand=True)
-            # Adding text, hopefully, will result in a unique image.  
-            # In a limited test of about 1,250 resources, this was certainly the case,
-            # finding 1,250 resources buried in the subdirectories of the fcrepo.binary 
-            # directory.
-            draw = ImageDraw.Draw(im)
-            font = ImageFont.truetype("source-data/sample-data/Tuffy_Bold.ttf", 56)
-            draw.text((10, 4030), new_s_binary, (0,0,0), font=font)
-            
-            file = io.BytesIO()
-            im.save(file, format="jpeg")
-            file.name = 'addison.jpg'
-            file.seek(0)
-            
-            headers={"Content-type": "image/jpeg"}
-            
-            st_binary = datetime.datetime.now()
-            starttime_binary = strftime("%Y-%m-%d %H:%M:%S", gmtime())
-        
-            with requests.Session() as sess:
-                try:
-                    r = sess.put(new_s_binary, data=file, headers=headers)
-                    httperror_binary = 0
-                    response_status_code_binary = r.status_code
-                    if r.status_code == 201:
-                        processed_binary = 1
-                except requests.exceptions.RequestException as e:
-                        print (e)
-                        pass
-            
-            endtime_binary = strftime("%Y-%m-%d %H:%M:%S", gmtime())
-            et_binary = datetime.datetime.now()
-            timedelta_binary = et_binary - st_binary
-            
-            oline = new_s_binary+ "; " + str(processed_binary) + "; " + str(response_status_code_binary) + "; " + str(timedelta) + "; "
-            counter.results.append(oline)
-            print(oline)
-
-        i = {
-            "processed": processed,
-            "httperror": httperror,
-            "response_status_code": response_status_code,
-            "starttime": starttime,
-            "endtime": endtime,
-            "timedelta": timedelta,
-            
-            "processed_binary": processed_binary,
-            "httperror_binary": httperror_binary,
-            "response_status_code_binary": response_status_code_binary,
-            "timedelta_binary": timedelta_binary,
-        }
-        counter.update(i, config["load_binary_data"])
-        return
-        
-def fetchRDF(rdffile):
-    '''Open RDF file and modify URIs'''
-    rdf = ''
-    with open(rdffile) as f:
-        for line in f:
-            l = line.replace('%BASE%', config['fcrepo']['base'])
-            l = l.replace('%BASE_NOSLASH%', config['fcrepo']['base'][:-1])
-            rdf = rdf + l
-    return rdf
-    
-def loadGraph(rdf):
-    '''Load RDF into graph'''
-    g = Graph()
-    g.parse(data=rdf, format="xml")
-    return g
-    
-def getSubjects(g, limit):
-    '''SUBJECTS generator'''
-    q = "SELECT DISTINCT ?s WHERE { ?s <http://www.w3.org/2004/02/skos/core#prefLabel> ?o . }"
-    if int(limit) > 0:
-        q = q + " LIMIT " + str(limit)
-    return g.query(q)
-
-def insertRelations(sourcefile):
-    rdf = fetchRDF(sourcefile)
-    g = loadGraph(rdf)
-    subjects = getSubjects(g, -1)
-    for subject in subjects:
-        s = subject.s.__str__()
-
-        tempg = Graph()
-        tempg += g.triples( (subject.s, None, None) )
-        d = tempg.serialize(format="nt", initNs=nsdict)
-        response = requests.put(s, data=d, headers={"Content-type": "application/n-triples"})
-        oline = s+ "; " + str(response.status_code) + "; "
-        counter.results.append(oline)
-        print(oline)
-        
 config = yaml.safe_load(open(args.config))
 print()
 print("Config:")
@@ -178,23 +30,24 @@ s_counter = 0
 requests.put(config["fcrepo"]["base"])
 
 # Insert the relations
-insertRelations(config["source_relations"])
+relations = GraphOperation(config)
+relations.loadGraph(config["source_relations"])
+relations_subjects = relations.getSubjects(-1)
+
+http_ops = HTTPOperation(config, counter)
+http_ops.insertRelations(relations_subjects, relations.g)
 
 # Parse the sample source data
-rdf = fetchRDF(config["source_data"])
-G = loadGraph(rdf)
-distinct_subjects = getSubjects(G, 0)
-SUBJECTS = []
-for subject in distinct_subjects:
-    s = subject.s.__str__()
-    SUBJECTS.append(subject.s)
+resources = GraphOperation(config)
+resources.loadGraph(config["source_data"])
+resources_subjects = resources.getSubjects(-1)
 
 st = datetime.datetime.now()
 starttime = strftime("%Y-%m-%d %H:%M:%S", gmtime())
 
-for s in SUBJECTS:
+for s in resources_subjects:
     c = COMBINATIONS[c_counter]
-    put_request(s, c, counter)
+    http_ops.put_request(s, c, resources.g)
     s_counter = s_counter + 1
     if s_counter % config["multiplier"] == 0:
         c_counter = c_counter + 1
