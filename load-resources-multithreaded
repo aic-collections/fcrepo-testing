@@ -54,19 +54,6 @@ class ThreadHandler(threading.Thread):
                 c_counter = c_counter + 1
                 if (c_counter + 1) > len(COMBINATIONS):
                     break
-        '''
-        for s in self.subjects:
-            threadPool.acquire()
-            if c % threads_by_two == 0:
-                self.counter.combo_pos = self.counter.combo_pos + 1
-            if c % (config["sample_size"] / 2) == 0:
-                self.counter.combo_pos = 0
-            combo = str(COMBINATIONS[self.counter.combo_pos])
-            c = c + 1
-            pr = PutRequest(s, combo, self.counter)
-            pr.setDaemon(True)
-            pr.start()
-        '''
 
 config = yaml.safe_load(open(args.config))
 print()
