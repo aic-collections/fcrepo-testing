@@ -19,6 +19,12 @@ import yaml
 
 from modules.config_parser import args
 
+def subprocess_run(args):
+    if sys.version_info < (3, 5):
+        return subprocess.check_output(args)
+    else:
+        return subprocess.run(args, stdout=subprocess.PIPE)
+
 st = datetime.datetime.now()
 br_log_file = "br_run_" + strftime("%Y%m%d%H%M%S", gmtime()) + ".log"
 
