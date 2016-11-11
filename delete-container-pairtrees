@@ -1,0 +1,82 @@
+#!/usr/bin/env python
+
+import os
+import sys
+import yaml
+
+import datetime
+from time import gmtime, strftime, sleep
+import threading
+
+from modules.config_parser import args
+from modules.counter import Counter
+from modules.ho import HTTPOperation
+from modules.helpers import get_hexdec_combos
+
+class DeleteRequest(threading.Thread):
+    def __init__(self, config, uri, counter):
+        threading.Thread.__init__(self)
+        self.config = config
+        self.uri = uri
+        self.counter = counter
+        
+    def run(self):
+        http_ops = HTTPOperation(self.config, self.counter)
+        http_ops.delete_request(self.uri)
+        threadPool.release()
+            
+class ThreadHandler(threading.Thread):
+    def __init__(self, config, uris, counter):
+        threading.Thread.__init__(self)
+        self.config = config
+        self.uris = uris
+        self.counter = counter
+        
+    def run(self):
+        for u in self.uris:
+            threadPool.acquire()
+            pr = DeleteRequest(self.config, u, self.counter)
+            pr.setDaemon(True)
+            pr.start()
+
+config = yaml.safe_load(open(args.config))
+print()
+print("Config:")
+print(config)
+print()
+
+COMBINATIONS = get_hexdec_combos()
+counter = Counter()
+
+# URIs to delete.
+uris = []
+for c in COMBINATIONS:
+    uris.append(config["fcrepo"]["base"] + c)
+for c in COMBINATIONS:
+    uris.append(config["fcrepo"]["base"] + c + "/fcr:tombstone")
+
+# Capture start time.
+st = datetime.datetime.now()
+starttime = strftime("%Y-%m-%d %H:%M:%S", gmtime())
+
+# This will delete the resources and their tombstones.
+threadPool = threading.BoundedSemaphore(config["threads"])
+handler=ThreadHandler(config, uris, counter)
+handler.start()
+handler.join()
+
+print()
+print("Sleeping for " + str(config["threads"] * 2) + " seconds so load threads can complete. This helps gather accurate load statistics.")
+print()
+sleep(config["threads"] * 2)
+
+# Capture end time.
+endtime = strftime("%Y-%m-%d %H:%M:%S", gmtime())
+et = datetime.datetime.now()
+
+timedelta = et - st
+
+print()
+print("Threads: " + str(config["threads"]))
+counter.output(starttime, endtime, timedelta, 0)
+

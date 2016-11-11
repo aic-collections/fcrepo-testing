@@ -19,7 +19,49 @@ class HTTPOperation:
         
         self.SKOS = Namespace("http://www.w3.org/2004/02/skos/core#")
         self.nsdict = dict(skos=self.SKOS)
+
+    def delete_request(self, uri):
+        st = datetime.datetime.now()
+        starttime = strftime("%Y-%m-%d %H:%M:%S", gmtime())
         
+        processed = 0
+        response_status_code = 0
+        httperror = 1
+        with requests.Session() as sess:
+            try:
+                r = sess.delete(uri)
+                httperror = 0
+                response_status_code = r.status_code
+                if r.status_code == 204:
+                    processed = 1
+            except requests.exceptions.RequestException as e:  # This is the correct syntax
+                    print (e)
+                    pass
+            
+        endtime = strftime("%Y-%m-%d %H:%M:%S", gmtime())
+        et = datetime.datetime.now()
+        timedelta = et - st
+        
+        oline = uri+ "; " + str(processed) + "; " + str(response_status_code) + "; " + str(timedelta) + "; "
+        self.counter.results.append(oline)
+        print(oline)
+        
+        i = {
+            "processed": processed,
+            "httperror": httperror,
+            "response_status_code": response_status_code,
+            "starttime": starttime,
+            "endtime": endtime,
+            "timedelta": timedelta,
+            
+            "processed_binary": 0,
+            "httperror_binary": 0,
+            "response_status_code_binary": 0,
+            "timedelta_binary": datetime.timedelta(0),
+        }
+        self.counter.update(i, 0)
+        return
+    
     def get_request(self, uri):
         headers={"Content-type": "application/n-triples"}
 
