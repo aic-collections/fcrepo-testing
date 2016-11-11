@@ -33,7 +33,7 @@ fcrepo = '/'.join(config["fcrepo"]["base"].split('/')[:-2])
 
 print()
 print("Loading sample data...")
-load = subprocess.run(["./load-resources", "--config", args.config], stdout=subprocess.PIPE)
+load = subprocess.run(["./load-resources-singlethreaded", "--config", args.config], stdout=subprocess.PIPE)
 print(load.stdout.decode("utf-8"))
 with open(br_log_file, 'w') as f:
     f.write(load.stdout.decode("utf-8"))
