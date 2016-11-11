@@ -24,9 +24,35 @@ There are sample `config` files in the `config` directory.  If necessary, copy a
 - `source_relations`: Leave alone. It is a carryover from earlier code.
 - `source_data`: There are two options.  A file with 50000 resources or one with 5000 resources.  The larger file takes a little longer to process, but should ensure you can use a `multiplier` up to and including 190.
 - `multiplier`: The number of resources to save under each of 256 pairtrees.  Must be at least 1 and can be up to 190 (or you will need more than the 50,000 resources in the sample data).
+- `threads`: The number of threads to use.  Threading is used only by the `load-resources-multithreaded` script and the `delete-container-pairtrees` script at this time.
 - `load_binary_data`: 1 or 0. If '1', then, in addition to loading an RDF resoruce, a binary file will be saved for each RDF resource.  This effectively doubles the load.
-  
-### Running
+
+
+### The Scripts
+
+Below are short descriptions of what each script does and how to invoke it.  Further down are instructions about specific testing strategies.
+
+- `load-resources-singlethreaded`: Will load resources in a singlethreaded fashion.  Output will include instructions to crawl the ingested resources to establish their existence. 
+```
+./load-resources-singlethreaded --config config/{file}.yaml
+```
+
+- `load-resources-multithreaded`: Will load resources in a multithreaded fashion, using the number of threads specificied in the `threads` configuration property.  Output will include instructions to crawl the ingested resources to establish their existence.
+```
+./load-resources-multithreaded --config config/{file}.yaml
+```
+
+- `test-gets`:  Using the information in the --data argument, which contains the URIs loaded from a previous `load-resources-*` run, it will crawl each URI to determine if the resource if findable and its HTTP return code (ideally 200).
+```
+./test-gets --config config/{file}.yaml --data source-data/loaded-uris/{previously_saved_file}.txt
+```
+
+- `delete-container-pairtrees`: Will delete each pairtree (256 in all) under the container, including all the resources under each pairtiree.  It takes advantage of multithreading.
+```
+./delete-container-pairtrees --config config/{file}.yaml
+```
+
+### Backup/Restore testing
 
 There are two ways to run these scripts, one more manual than the other.
 
@@ -43,14 +69,14 @@ The scripts can be run in a more manual way too.
 Load some resources:
 
 ```
-./load-resources --config config/localhost.yaml 
+./load-resources-singlethreaded --config config/{file}.yaml 
 ```
 
 The above command will save a list of loaded URIs to the source-data/loaded-uris/ directory to a file named with a datetime string indicating when the run finished.  
 
 Verify them.  This will perform a simple GET on each loaded resource:
 ```
-./test-gets --config config/localhost.yaml --data source-data/loaded-uris/{previously_saved_file}.txt
+./test-gets --config config/{file}.yaml --data source-data/loaded-uris/{previously_saved_file}.txt
 ```
 
 Assuming the response codes for the resources are all 200s, perform a backup of the repository.
